@@ -1,0 +1,71 @@
+! Enable necessary features
+feature nhrp
+feature tunnel
+feature ipsec
+
+! Configure interfaces
+interface GigabitEthernet0/0/0
+ description Internet connection
+ ip address <public_ip_address> <subnet_mask>
+ ip nat outside
+ ip virtual-reassembly in
+ duplex auto
+ speed auto
+
+interface Tunnel111
+ description DMVPN Tunnel Interface
+ ip address <tunnel_ip_address> <subnet_mask>
+ ip mtu 1400
+ ip nhrp authentication <authentication_key>
+ ip nhrp map multicast dynamic
+ ip nhrp network-id 100
+ ip nhrp redirect
+ ip nhrp shortcut
+ tunnel source GigabitEthernet0/0/0
+ tunnel mode gre multipoint
+ tunnel key 100
+ tunnel protection ipsec profile <ipsec_profile_name>
+
+! Configure IPsec
+crypto isakmp policy 10
+ encr aes 256
+ authentication pre-share
+ group 14
+crypto isakmp key <pre-shared_key> address 0.0.0.0 0.0.0.0
+
+crypto ipsec transform-set ESP-AES256-SHA esp-aes 256 esp-sha-hmac
+ mode tunnel
+
+crypto ipsec profile <ipsec_profile_name>
+ set transform-set ESP-AES256-SHA
+
+! Configure NHRP
+ip nhrp authentication <authentication_key>
+ip nhrp network-id 100
+ip nhrp map multicast dynamic
+ip nhrp map <tunnel_ip_address_of_spoke1> <spoke1_public_ip>
+ip nhrp map <tunnel_ip_address_of_spoke2> <spoke2_public_ip>
+ip nhrp map <tunnel_ip_address_of_spoke3> <spoke3_public_ip>
+! Add more spoke mappings as needed
+
+! Configure routing
+router eigrp 100
+ network <tunnel_ip_network> <wildcard_mask>
+ eigrp stub connected summary
+ no auto-summary
+
+! Enable NAT if required
+ip nat inside source list <acl_number> interface GigabitEthernet0/0/0 overload
+ip nat inside source static <internal_server_ip> <public_ip_of_server>
+
+! Apply access control lists as necessary
+access-list <acl_number> permit ip <internal_network> <wildcard_mask> any
+
+! Configure default route
+ip route 0.0.0.0 0.0.0.0 GigabitEthernet0/0/0
+
+! Enable SSH and other management services if required
+! Enable logging and SNMP as per your organization's requirements
+
+!Please note that you'll need to replace the placeholders <public_ip_address>, <subnet_mask>, <tunnel_ip_address>, <authentication_key>, <ipsec_profile_name>, <pre-shared_key>, <tunnel_ip_address_of_spokeX>, <spokeX_public_ip>, <tunnel_ip_network>, <wildcard_mask>, <acl_number>, <internal_server_ip>, and <internal_network> with the appropriate values specific to your network setup.
+
