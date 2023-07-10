@@ -1,0 +1,67 @@
+! Enable necessary features
+feature nhrp
+feature tunnel
+feature ipsec
+
+! Configure interfaces
+interface GigabitEthernet0/0/0
+ description Internet connection
+ ip address <public_ip_address> <subnet_mask>
+ ip nat outside
+ ip virtual-reassembly in
+ duplex auto
+ speed auto
+
+interface Tunnel0
+ description DMVPN Tunnel Interface
+ ip address <tunnel_ip_address> <subnet_mask>
+ ip mtu 1400
+ ip nhrp authentication <authentication_key>
+ ip nhrp map multicast <hub_tunnel_ip_address>
+ ip nhrp map <hub_tunnel_ip_address> <hub_public_ip_address>
+ ip nhrp network-id 100
+ ip nhrp nhs dynamic nbma <hub_tunnel_ip_address>
+ tunnel source GigabitEthernet0/0/0
+ tunnel mode gre multipoint
+ tunnel key 100
+ tunnel protection ipsec profile <ipsec_profile_name>
+
+! Configure IPsec
+crypto isakmp policy 10
+ encr aes 256
+ authentication pre-share
+ group 14
+crypto isakmp key <pre-shared_key> address 0.0.0.0 0.0.0.0
+
+crypto ipsec transform-set ESP-AES256-SHA esp-aes 256 esp-sha-hmac
+ mode tunnel
+
+crypto ipsec profile <ipsec_profile_name>
+ set transform-set ESP-AES256-SHA
+
+! Configure NHRP
+ip nhrp authentication <authentication_key>
+ip nhrp network-id 100
+ip nhrp map multicast <hub_tunnel_ip_address>
+ip nhrp map <hub_tunnel_ip_address> <hub_public_ip_address>
+ip nhrp nhs dynamic nbma <hub_tunnel_ip_address>
+
+! Configure routing
+router eigrp 100
+ network <tunnel_ip_network> <wildcard_mask>
+ eigrp stub connected summary
+ no auto-summary
+
+! Enable NAT if required
+ip nat inside source list <acl_number> interface GigabitEthernet0/0/0 overload
+ip nat inside source static <internal_server_ip> <public_ip_of_server>
+
+! Apply access control lists as necessary
+access-list <acl_number> permit ip <internal_network> <wildcard_mask> any
+
+! Configure default route
+ip route 0.0.0.0 0.0.0.0 GigabitEthernet0/0/0
+
+! Enable SSH and other management services if required
+! Enable logging and SNMP as per your organization's requirements
+
